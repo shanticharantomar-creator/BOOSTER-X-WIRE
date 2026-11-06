@@ -83,32 +83,32 @@
     </div>
 
     <script>
-        // GLOBAL HARDCODED KEYS (Yahan aapki keys fix hain jo sabhi ke liye chalengi)
-        let GLOBAL_KEYS_DB = [
-            { key: "BX-VIP-KTX8ZT", durationVal: 24, durationUnit: "hours" },
-            { key: "BX-VIP-TESTKEY", durationVal: 24, durationUnit: "hours" }
-        ];
-
+        const STORAGE_KEYS = "BX_KEYS_DB";
         const STORAGE_CONFIG = "BX_DIRECT_CONFIG";
+        const STORAGE_MAINTENANCE = "BX_GLOBAL_MAINTENANCE";
         const DEFAULT_CONFIG = "hy2://XREG-49B5-A1F0-B53A.1793843700.18f9a12063d00b18ef54234d3648d914@wraith-bom3.xreg.site:443?security=tls&insecure=1&alpn=http/1.1&sni=wraith-bom3.xreg.site#BOOSTER X WIRE";
+
+        const DEFAULT_KEYS = [
+            { key: "BX-VIP-KTX8ZT" },
+            { key: "BX-VIP-TESTKEY" }
+        ];
 
         window.addEventListener('load', () => {
             let current = localStorage.getItem(STORAGE_CONFIG) || DEFAULT_CONFIG;
             document.getElementById('input-config-url').value = current;
             
-            let savedMaint = localStorage.getItem("BX_GLOBAL_MAINTENANCE") || "OFF";
-            document.getElementById('maintenance-toggle').value = savedMaint;
-
-            let savedKeys = JSON.parse(localStorage.getItem("BX_GLOBAL_KEYS"));
-            if(savedKeys) GLOBAL_KEYS_DB = savedKeys;
+            let maint = localStorage.getItem(STORAGE_MAINTENANCE) || "OFF";
+            document.getElementById('maintenance-toggle').value = maint;
             
+            if(!localStorage.getItem(STORAGE_KEYS)) {
+                localStorage.setItem(STORAGE_KEYS, JSON.stringify(DEFAULT_KEYS));
+            }
             loadKeys();
         });
 
         document.getElementById('btn-save-maintenance').addEventListener('click', () => {
             let val = document.getElementById('maintenance-toggle').value;
-            localStorage.setItem("BX_GLOBAL_MAINTENANCE", val);
-            alert("Maintenance status saved! (Note: To make it global for all users, update the 'IS_MAINTENANCE_ON' variable in index.html as well).");
+            localStorage.setItem(STORAGE_MAINTENANCE, val);
             let msg = document.getElementById('maint-success');
             msg.style.display = "block";
             setTimeout(() => { msg.style.display = "none"; }, 2000);
@@ -126,8 +126,14 @@
         function loadKeys() {
             const container = document.getElementById('key-list-container');
             container.innerHTML = '';
-            
-            GLOBAL_KEYS_DB.forEach((item, index) => {
+            let db = JSON.parse(localStorage.getItem(STORAGE_KEYS)) || DEFAULT_KEYS;
+
+            if (db.length === 0) {
+                container.innerHTML = '<div style="text-align:center; color:#6b7280; font-size:11px;">No active keys found.</div>';
+                return;
+            }
+
+            db.forEach((item, index) => {
                 let div = document.createElement('div');
                 div.className = 'key-item';
                 div.innerHTML = `
@@ -157,22 +163,18 @@
             let randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
             let newKeyStr = prefix + randomSuffix;
 
-            GLOBAL_KEYS_DB.push({
-                key: newKeyStr,
-                durationVal: 24,
-                durationUnit: "hours"
-            });
+            let db = JSON.parse(localStorage.getItem(STORAGE_KEYS)) || DEFAULT_KEYS;
+            db.push({ key: newKeyStr });
 
-            localStorage.setItem("BX_GLOBAL_KEYS", JSON.stringify(GLOBAL_KEYS_DB));
+            localStorage.setItem(STORAGE_KEYS, JSON.stringify(db));
             loadKeys();
-            
-            // Ye code copy karne ke liye alert dega jise aap index.html mein bhi dal sakte hain
-            prompt("Key generated successfully! Copy this key and ensure it's in index.html:", newKeyStr);
+            alert("Key generated successfully: " + newKeyStr);
         });
 
         window.deleteKey = function(index) {
-            GLOBAL_KEYS_DB.splice(index, 1);
-            localStorage.setItem("BX_GLOBAL_KEYS", JSON.stringify(GLOBAL_KEYS_DB));
+            let db = JSON.parse(localStorage.getItem(STORAGE_KEYS)) || DEFAULT_KEYS;
+            db.splice(index, 1);
+            localStorage.setItem(STORAGE_KEYS, JSON.stringify(db));
             loadKeys();
         };
     </script>
