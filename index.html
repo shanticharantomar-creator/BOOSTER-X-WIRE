@@ -157,21 +157,21 @@
     </div>
 
     <script>
-        const STORAGE_KEYS = "BX_KEYS_DB";
-        const STORAGE_ACTIVE = "BX_CURRENT_ACTIVE_SESSION";
-        const STORAGE_CONFIG = "BX_DIRECT_CONFIG";
-        const STORAGE_MAINTENANCE = "BX_MAINTENANCE_MODE";
-        const EXACT_REQUIRED_DEVICE = "BOOSTER X WIRE";
-
-        const DEFAULT_GLOBAL_KEYS = [
-            { key: "BX-VIP-KTX8ZT", totalMs: 86400000, expiresAt: null, deviceUuid: null },
-            { key: "BX-VIP-TESTKEY", totalMs: 86400000, expiresAt: null, deviceUuid: null }
+        // ==========================================
+        // 🛠️ GLOBAL CONTROLS (Yahan se sab control hoga)
+        // ==========================================
+        const IS_MAINTENANCE_ON = false; // Agar true karoge toh sabke liye site lock ho jayegi
+        
+        // Yeh hain valid keys jo har device par chalengi (Aap admin panel se nayi key banakar yahan add kar sakte hain)
+        const VALID_GLOBAL_KEYS = [
+            "BX-VIP-KTX8ZT",
+            "BX-VIP-TESTKEY"
         ];
+        // ==========================================
 
         window.addEventListener('load', () => {
-            // Global Maintenance Check (Ab sabhi devices ke liye sync rahega)
-            let maintMode = localStorage.getItem(STORAGE_MAINTENANCE) || "OFF";
-            if (maintMode === "ON") {
+            // Maintenance Check
+            if (IS_MAINTENANCE_ON) {
                 document.body.innerHTML = `
                     <div style="background:#030712; color:#00e5ff; height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:20px; font-family:sans-serif;">
                         <i class="fa-solid fa-screwdriver-wrench" style="font-size:48px; margin-bottom:20px; color:#ef4444;"></i>
@@ -182,14 +182,10 @@
                 return;
             }
 
-            if (!localStorage.getItem(STORAGE_KEYS)) {
-                localStorage.setItem(STORAGE_KEYS, JSON.stringify(DEFAULT_GLOBAL_KEYS));
-            }
-
-            const act = JSON.parse(localStorage.getItem(STORAGE_ACTIVE));
+            const act = JSON.parse(localStorage.getItem("BX_ACTIVE_SESSION"));
             if(act && act.key) {
                 if(Date.now() > act.expiresAt) {
-                    localStorage.removeItem(STORAGE_ACTIVE);
+                    localStorage.removeItem("BX_ACTIVE_SESSION");
                 } else {
                     showDashboard(act);
                 }
@@ -218,7 +214,6 @@
         async function verifyKey() {
             let keyVal = document.getElementById('input-key').value.trim();
             const status = document.getElementById('login-status-msg');
-            let deviceVal = EXACT_REQUIRED_DEVICE;
             
             if(!keyVal) {
                 status.innerText = "PLEASE ENTER AN ADMIN KEY";
@@ -230,51 +225,30 @@
             status.innerText = "VERIFYING KEY...";
             status.style.color = "#00e5ff";
 
-            let db = JSON.parse(localStorage.getItem(STORAGE_KEYS)) || DEFAULT_GLOBAL_KEYS;
-            let foundKey = db.find(k => k.key === keyVal);
-
-            if (!foundKey) {
+            // Check if key exists in global hardcoded list
+            if (!VALID_GLOBAL_KEYS.includes(keyVal)) {
                 status.innerText = "INVALID KEY (NOT IN ADMIN DB)";
                 status.style.color = "#ef4444";
                 resetSlide();
                 return;
             }
 
-            if (foundKey.deviceUuid && foundKey.deviceUuid !== deviceVal) {
-                status.innerText = "DEVICE ID MISMATCH!";
-                status.style.color = "#ef4444";
-                resetSlide();
-                return;
-            }
-
             const now = Date.now();
-            if (foundKey.expiresAt && now > foundKey.expiresAt) {
-                status.innerText = "KEY EXPIRED";
-                status.style.color = "#ef4444";
-                resetSlide();
-                return;
-            }
+            const durationMs = 24 * 60 * 60 * 1000; // 24 Hours validity
+            const sessionExpiry = now + durationMs;
 
             const DEFAULT_PAYLOAD = "hy2://XREG-49B5-A1F0-B53A.1793843700.18f9a12063d00b18ef54234d3648d914@wraith-bom3.xreg.site:443?security=tls&insecure=1&alpn=http/1.1&sni=wraith-bom3.xreg.site#BOOSTER X WIRE";
-            let payloadUrl = localStorage.getItem(STORAGE_CONFIG) || DEFAULT_PAYLOAD;
-
-            let sessionExpiry = foundKey.expiresAt ? foundKey.expiresAt : (now + (foundKey.totalMs || 86400000));
-            
-            if (!foundKey.deviceUuid || !foundKey.expiresAt) {
-                foundKey.deviceUuid = deviceVal;
-                foundKey.expiresAt = sessionExpiry;
-                localStorage.setItem(STORAGE_KEYS, JSON.stringify(db));
-            }
+            let payloadUrl = localStorage.getItem("BX_DIRECT_CONFIG") || DEFAULT_PAYLOAD;
 
             let sessionData = {
-                key: foundKey.key,
+                key: keyVal,
                 payload: payloadUrl,
                 activatedTime: now,
                 expiresAt: sessionExpiry,
-                deviceId: deviceVal
+                deviceId: "BOOSTER X WIRE"
             };
             
-            localStorage.setItem(STORAGE_ACTIVE, JSON.stringify(sessionData));
+            localStorage.setItem("BX_ACTIVE_SESSION", JSON.stringify(sessionData));
             showDashboard(sessionData);
         }
 
@@ -336,66 +310,4 @@
         }
 
         function logout() {
-            localStorage.removeItem(STORAGE_ACTIVE);
-            if(timerObj) clearInterval(timerObj);
-            document.getElementById('screen-dashboard').classList.add('hidden');
-            document.getElementById('screen-login').classList.remove('hidden');
-            document.getElementById('input-key').value = '';
-            document.getElementById('login-status-msg').innerText = "STATUS: READY FOR VERIFICATION";
-            resetSlide();
-        }
-
-        document.getElementById('btn-logout').addEventListener('click', logout);
-        
-        document.getElementById('btn-paste-key').addEventListener('click', async () => {
-            try { const t = await navigator.clipboard.readText(); document.getElementById('input-key').value = t; } catch(e) { alert("Please paste manually."); }
-        });
-
-        document.getElementById('btn-copy-key').addEventListener('click', () => {
-            const keyText = document.getElementById('disp-active-key').innerText;
-            copyTextAnywhere(keyText, document.getElementById('btn-copy-key'));
-        });
-
-        function copyTextAnywhere(text, btnElem) {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text).then(() => {
-                    showCopySuccess(btnElem);
-                }).catch(() => {
-                    fallbackCopy(text, btnElem);
-                });
-            } else {
-                fallbackCopy(text, btnElem);
-            }
-        }
-
-        function fallbackCopy(text, btnElem) {
-            const ta = document.createElement('textarea');
-            ta.value = text;
-            ta.style.position = 'fixed';
-            ta.style.top = '0';
-            ta.style.left = '0';
-            ta.style.opacity = '0';
-            document.body.appendChild(ta);
-            ta.focus();
-            ta.select();
-            try {
-                const successful = document.execCommand('copy');
-                if (successful) {
-                    showCopySuccess(btnElem);
-                } else {
-                    prompt("Copy your key:", text);
-                }
-            } catch (err) {
-                prompt("Copy your key:", text);
-            }
-            document.body.removeChild(ta);
-        }
-
-        function showCopySuccess(btnElem) {
-            let oldHtml = btnElem.innerHTML;
-            btnElem.innerHTML = '<i class="fa-solid fa-check"></i> COPIED!';
-            setTimeout(() => { btnElem.innerHTML = oldHtml; }, 2000);
-        }
-    </script>
-</body>
-</html>
+            localStorage.removeItem(
