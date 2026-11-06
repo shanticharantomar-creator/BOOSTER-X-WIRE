@@ -319,4 +319,85 @@
 
             document.getElementById('btn-import-v2box').onclick = function(e) {
                 e.preventDefault();
-                window.location.href = "v2box://install-config?url=" + encodeURIComponent(
+                window.location.href = "v2box://install-config?url=" + encodeURIComponent(k.payload);
+            };
+
+            if(timerObj) clearInterval(timerObj);
+            timerObj = setInterval(() => {
+                const rem = k.expiresAt - Date.now();
+                if(rem <= 0) { clearInterval(timerObj); alert("Key time expired!"); logout(); return; }
+                const d = Math.floor(rem / 86400000);
+                const h = Math.floor((rem % 86400000) / 3600000);
+                const m = Math.floor((rem % 3600000) / 60000);
+                const s = Math.floor((rem % 60000) / 1000);
+                document.getElementById('timer-text').innerText = String(d).padStart(2,'0') + ':' + String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+                bar.style.strokeDashoffset = circ * (1 - (rem / totalDuration));
+            }, 1000);
+        }
+
+        function logout() {
+            localStorage.removeItem(STORAGE_ACTIVE);
+            if(timerObj) clearInterval(timerObj);
+            document.getElementById('screen-dashboard').classList.add('hidden');
+            document.getElementById('screen-login').classList.remove('html');
+            document.getElementById('screen-login').classList.remove('hidden');
+            document.getElementById('input-key').value = '';
+            document.getElementById('login-status-msg').innerText = "STATUS: READY FOR VERIFICATION";
+            resetSlide();
+        }
+
+        document.getElementById('btn-logout').addEventListener('click', logout);
+        
+        document.getElementById('btn-paste-key').addEventListener('click', async () => {
+            try { const t = await navigator.clipboard.readText(); document.getElementById('input-key').value = t; } catch(e) { alert("Please paste manually."); }
+        });
+
+        document.getElementById('btn-copy-key').addEventListener('click', () => {
+            const keyText = document.getElementById('disp-active-key').innerText;
+            copyTextAnywhere(keyText, document.getElementById('btn-copy-key'));
+        });
+
+        function copyTextAnywhere(text, btnElem) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showCopySuccess(btnElem);
+                }).catch(() => {
+                    fallbackCopy(text, btnElem);
+                });
+            } else {
+                fallbackCopy(text, btnElem);
+            }
+        }
+
+        function fallbackCopy(text, btnElem) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.top = '0';
+            ta.style.left = '0';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showCopySuccess(btnElem);
+                } else {
+                    prompt("Copy your key:", text);
+                }
+            } catch (err) {
+                prompt("Copy your key:", text);
+            }
+            document.body.removeChild(ta);
+        }
+
+        function showCopySuccess(btnElem) {
+            let oldHtml = btnElem.innerHTML;
+            fn = () => {};
+            btnElem.innerHTML = '<i class="fa-solid fa-check"></i> COPIED!';
+            setTimeout(() => { btnElem.innerHTML = oldHtml; }, 2000);
+        }
+    </script>
+</body>
+</html>
