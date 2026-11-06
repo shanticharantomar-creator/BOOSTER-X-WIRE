@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOOSTER X WIRE - Admin Key & Config Panel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: #030712; color: #fff; min-height: 100vh; padding: 20px; display: flex; justify-content: center; align-items: flex-start; }
+        .admin-container { width: 100%; max-width: 500px; margin-top: 10px; }
+        .card { background: rgba(10, 16, 30, 0.95); border: 1px solid rgba(0, 229, 255, 0.4); border-radius: 20px; padding: 20px; box-shadow: 0 0 30px rgba(0, 229, 255, 0.2); margin-bottom: 20px; }
+        h1 { font-size: 16px; color: #00e5ff; margin-bottom: 14px; text-align: center; letter-spacing: 1px; }
+        .form-group { margin-bottom: 12px; }
+        label { display: block; font-size: 10px; color: #9ca3af; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px; }
+        input, select, textarea { width: 100%; padding: 12px; background: #050a14; border: 1px solid rgba(0, 229, 255, 0.3); border-radius: 10px; color: #fff; font-size: 12px; outline: none; }
+        textarea { height: 90px; resize: none; font-size: 11px; }
+        .duration-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
+        .btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #00e5ff, #0088ff); border: none; border-radius: 12px; color: #000; font-weight: 800; font-size: 12px; letter-spacing: 1px; cursor: pointer; text-transform: uppercase; box-shadow: 0 0 15px rgba(0, 229, 255, 0.5); }
+        .key-list { margin-top: 12px; max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+        .key-item { background: rgba(5, 12, 25, 0.9); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; }
+        .key-text { color: #00e5ff; font-weight: 700; letter-spacing: 1px; }
+        .btn-group-actions { display: flex; gap: 6px; align-items: center; }
+        .copy-btn { background: rgba(0, 229, 255, 0.2); border: 1px solid rgba(0, 229, 255, 0.4); color: #00e5ff; padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: 9px; font-weight: 700; }
+        .del-btn { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #ef4444; padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: 9px; font-weight: 700; }
+        .success-msg { text-align: center; font-size: 10px; color: #10b981; margin-top: 8px; display: none; }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <!-- V2BOX CONFIG URL PANEL -->
+        <div class="card">
+            <h1><i class="fa-solid fa-sliders"></i> V2BOX CONFIG PAYLOAD</h1>
+            <div class="form-group">
+                <label>Update Client Config / Payload URL</label>
+                <textarea id="input-config-url" placeholder="Paste v2ray/hysteria2 URL here..."></textarea>
+            </div>
+            <button class="btn" id="btn-save-config">Save Payload URL</button>
+            <div class="success-msg" id="config-success">Payload updated successfully!</div>
+        </div>
+
+        <!-- KEY GENERATOR PANEL -->
+        <div class="card">
+            <h1><i class="fa-solid fa-shield-halved"></i> ADVANCED KEY GENERATOR</h1>
+            <div class="form-group">
+                <label>Custom Key Prefix</label>
+                <input type="text" id="key-prefix" value="BX-VIP-">
+            </div>
+            <div class="form-group">
+                <label>Validity Duration</label>
+                <div class="duration-grid">
+                    <input type="number" id="duration-value" value="24" min="1">
+                    <select id="duration-unit">
+                        <option value="minutes">Minutes</option>
+                        <option value="hours" selected>Hours</option>
+                        <option value="days">Days</option>
+                        <option value="months">Months</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn" id="btn-generate">Generate Secure Key</button>
+        </div>
+
+        <!-- ACTIVE KEYS DATABASE -->
+        <div class="card">
+            <h1>Active Database Keys</h1>
+            <div class="key-list" id="key-list-container"></div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEYS = "BX_KEYS_DB";
+        const STORAGE_CONFIG = "BX_DIRECT_CONFIG";
+        const DEFAULT_CONFIG = "hy2://XREG-49B5-A1F0-B53A.1793843700.18f9a12063d00b18ef54234d3648d914@wraith-bom3.xreg.site:443?security=tls&insecure=1&alpn=http/1.1&sni=wraith-bom3.xreg.site#BOOSTER X WIRE";
+
+        window.addEventListener('load', () => {
+            let current = localStorage.getItem(STORAGE_CONFIG) || DEFAULT_CONFIG;
+            document.getElementById('input-config-url').value = current;
+            loadKeys();
+        });
+
+        document.getElementById('btn-save-config').addEventListener('click', () => {
+            let val = document.getElementById('input-config-url').value.trim();
+            if(!val) { alert("Please enter a valid URL!"); return; }
+            localStorage.setItem(STORAGE_CONFIG, val);
+            let msg = document.getElementById('config-success');
+            msg.style.display = "block";
+            setTimeout(() => { msg.style.display = "none"; }, 2000);
+        });
+
+        function loadKeys() {
+            const container = document.getElementById('key-list-container');
+            container.innerHTML = '';
+            let db = JSON.parse(localStorage.getItem(STORAGE_KEYS)) || [];
+
+            if (db.length === 0) {
+                container.innerHTML = '<div style="text-align:center; color:#6b7280; font-size:11px;">No active keys found.</div>';
+                return;
+            }
+
+            db.forEach((item, index) => {
+                let div = document.createElement('div');
+                div.className = 'key-item';
+                div.innerHTML = `
+                    <div>
+                        <div class="key-text">${item.key}</div>
+                        <div style="font-size:9px; color:#9ca3af; margin-top:2px;">Duration: ${item.durationVal} ${item.durationUnit} | Status: ${item.deviceUuid ? 'Bound (Locked)' : 'Unbound'}</div>
+                    </div>
+                    <div class="btn-group-actions">
+                        <button class="copy-btn" onclick="copyKeyText('${item.key}', this)">COPY</button>
+                        <button class="del-btn" onclick="deleteKey(${index})">DELETE</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        window.copyKeyText = function(keyStr, btnElem) {
+            // Robust clipboard copy with fallback for mobile webviews
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(keyStr).then(() => {
+                    showCopiedState(btnElem);
+                }).catch(() => {
+                    fallbackCopyText(keyStr, btnElem);
+                });
+            } else {
+                fallbackCopyText(keyStr, btnElem);
+            }
+        };
+
+        function fallbackCopyText(text, btnElem) {
+            const textarea = document.createElement("textarea");
+            textarea.value = text;
+            textarea.style.position = "fixed";
+            textarea.style.top = "0";
+            textarea.style.left = "0";
+            textarea.style.opacity = "0";
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showCopiedState(btnElem);
+                } else {
+                    prompt("Copy your key manually:", text);
+                }
+            } catch (err) {
+                prompt("Copy your key manually:", text);
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function showCopiedState(btnElem) {
+            let oldHtml = btnElem.innerHTML;
+            btnElem.innerHTML = "COPIED";
+            btnElem.style.background = "#10b981";
+            btnElem.style.color = "#000";
+            setTimeout(() => { 
+                btnElem.innerHTML = oldHtml; 
+                btnElem.style.background = "rgba(0, 229, 255, 0.2)";
+                btnElem.style.color = "#00e5ff";
+            }, 1500);
+        }
+
+        document.getElementById('btn-generate').addEventListener('click', () => {
+            let prefix = document.getElementById('key-prefix').value.trim() || "BX-";
+            let val = parseInt(document.getElementById('duration-value').value) || 1;
+            let unit = document.getElementById('duration-unit').value;
+            
+            let randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
+            let newKeyStr = prefix + randomSuffix;
+
+            let msMultiplier = 3600000;
+            if(unit === 'minutes') msMultiplier = 60000;
+            else if(unit === 'hours') msMultiplier = 3600000;
+            else if(unit === 'days') msMultiplier = 86400000;
+            else if(unit === 'months') msMultiplier = 30 * 86400000;
+
+            let totalMs = val * msMultiplier;
+
+            let db = JSON.parse(localStorage.getItem(STORAGE_KEYS)) || [];
+            db.push({
+                key: newKeyStr,
+                durationVal: val,
+                durationUnit: unit,
+                totalMs: totalMs,
+                expiresAt: null,
+                deviceUuid: null
+            });
+
+            localStorage.setItem(STORAGE_KEYS, JSON.stringify(db));
+            loadKeys();
+            alert("Key generated successfully: " + newKeyStr);
+        });
+
+        window.deleteKey = function(index) {
+            let db = JSON.parse(localStorage.getItem(STORAGE_KEYS)) || [];
+            db.splice(index, 1);
+            localStorage.setItem(STORAGE_KEYS, JSON.stringify(db));
+            loadKeys();
+        };
+    </script>
+</body>
+</html>
