@@ -28,6 +28,7 @@
 </head>
 <body>
     <div class="admin-container">
+        <!-- MAINTENANCE MODE PANEL -->
         <div class="card">
             <h1><i class="fa-solid fa-screwdriver-wrench"></i> MAINTENANCE MODE</h1>
             <div class="form-group">
@@ -41,6 +42,7 @@
             <div class="success-msg" id="maint-success">Status updated successfully!</div>
         </div>
 
+        <!-- V2BOX CONFIG URL PANEL -->
         <div class="card">
             <h1><i class="fa-solid fa-sliders"></i> V2BOX CONFIG PAYLOAD</h1>
             <div class="form-group">
@@ -51,6 +53,7 @@
             <div class="success-msg" id="config-success">Payload updated successfully!</div>
         </div>
 
+        <!-- KEY GENERATOR PANEL -->
         <div class="card">
             <h1><i class="fa-solid fa-shield-halved"></i> ADVANCED KEY GENERATOR</h1>
             <div class="form-group">
@@ -72,6 +75,7 @@
             <button class="btn" id="btn-generate">Generate Secure Key</button>
         </div>
 
+        <!-- ACTIVE KEYS DATABASE -->
         <div class="card">
             <h1>Active Database Keys</h1>
             <div class="key-list" id="key-list-container"></div>
@@ -84,11 +88,21 @@
         const STORAGE_MAINTENANCE = "BX_MAINTENANCE_MODE";
         const DEFAULT_CONFIG = "hy2://XREG-49B5-A1F0-B53A.1793843700.18f9a12063d00b18ef54234d3648d914@wraith-bom3.xreg.site:443?security=tls&insecure=1&alpn=http/1.1&sni=wraith-bom3.xreg.site#BOOSTER X WIRE";
 
+        // Global Pre-configured Keys (Sabhi users ke liye valid rahengi)
+        const INITIAL_GLOBAL_KEYS = [
+            { key: "BX-VIP-KTX8ZT", totalMs: 86400000, expiresAt: null, deviceUuid: null },
+            { key: "BX-VIP-TESTKEY", totalMs: 86400000, expiresAt: null, deviceUuid: null }
+        ];
+
         window.addEventListener('load', () => {
             let current = localStorage.getItem(STORAGE_CONFIG) || DEFAULT_CONFIG;
             document.getElementById('input-config-url').value = current;
             let maint = localStorage.getItem(STORAGE_MAINTENANCE) || "OFF";
             document.getElementById('maintenance-toggle').value = maint;
+            
+            if(!localStorage.getItem(STORAGE_KEYS)) {
+                localStorage.setItem(STORAGE_KEYS, JSON.stringify(INITIAL_GLOBAL_KEYS));
+            }
             loadKeys();
         });
 
@@ -112,7 +126,7 @@
         function loadKeys() {
             const container = document.getElementById('key-list-container');
             container.innerHTML = '';
-            let db = JSON.parse(localStorage.getItem(STORAGE_KEYS)) || [];
+            let db = JSON.parse(localStorage.getItem(STORAGE_KEYS)) || INITIAL_GLOBAL_KEYS;
 
             if (db.length === 0) {
                 container.innerHTML = '<div style="text-align:center; color:#6b7280; font-size:11px;">No active keys found.</div>';
@@ -125,7 +139,7 @@
                 div.innerHTML = `
                     <div>
                         <div class="key-text">${item.key}</div>
-                        <div style="font-size:9px; color:#9ca3af; margin-top:2px;">Duration: ${item.durationVal} ${item.durationUnit} | Target: BOOSTER X WIRE</div>
+                        <div style="font-size:9px; color:#9ca3af; margin-top:2px;">Duration: ${item.durationVal || '24'} Hours | Target: BOOSTER X WIRE</div>
                     </div>
                     <div class="btn-group-actions">
                         <button class="copy-btn" onclick="copyKeyText('${item.key}', this)">COPY</button>
@@ -199,7 +213,7 @@
 
             let totalMs = val * msMultiplier;
 
-            let db = JSON.parse(localStorage.getItem(STORAGE_KEYS)) || [];
+            let db = JSON.parse(localStorage.getItem(STORAGE_KEYS)) || INITIAL_GLOBAL_KEYS;
             db.push({
                 key: newKeyStr,
                 durationVal: val,
@@ -215,7 +229,7 @@
         });
 
         window.deleteKey = function(index) {
-            let db = JSON.parse(localStorage.getItem(STORAGE_KEYS)) || [];
+            let db = JSON.parse(localStorage.getItem(STORAGE_KEYS)) || INITIAL_GLOBAL_KEYS;
             db.splice(index, 1);
             localStorage.setItem(STORAGE_KEYS, JSON.stringify(db));
             loadKeys();
