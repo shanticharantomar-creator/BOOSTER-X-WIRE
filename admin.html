@@ -28,7 +28,19 @@
 </head>
 <body>
     <div class="admin-container">
-        <!-- V2BOX CONFIG URL PANEL -->
+        <div class="card">
+            <h1><i class="fa-solid fa-screwdriver-wrench"></i> MAINTENANCE MODE</h1>
+            <div class="form-group">
+                <label>Site Status Switch</label>
+                <select id="maintenance-toggle">
+                    <option value="OFF">OFF (Normal Operational)</option>
+                    <option value="ON">ON (Maintenance Locked)</option>
+                </select>
+            </div>
+            <button class="btn" id="btn-save-maintenance">Save Status</button>
+            <div class="success-msg" id="maint-success">Status updated successfully!</div>
+        </div>
+
         <div class="card">
             <h1><i class="fa-solid fa-sliders"></i> V2BOX CONFIG PAYLOAD</h1>
             <div class="form-group">
@@ -39,7 +51,6 @@
             <div class="success-msg" id="config-success">Payload updated successfully!</div>
         </div>
 
-        <!-- KEY GENERATOR PANEL -->
         <div class="card">
             <h1><i class="fa-solid fa-shield-halved"></i> ADVANCED KEY GENERATOR</h1>
             <div class="form-group">
@@ -61,7 +72,6 @@
             <button class="btn" id="btn-generate">Generate Secure Key</button>
         </div>
 
-        <!-- ACTIVE KEYS DATABASE -->
         <div class="card">
             <h1>Active Database Keys</h1>
             <div class="key-list" id="key-list-container"></div>
@@ -71,12 +81,23 @@
     <script>
         const STORAGE_KEYS = "BX_KEYS_DB";
         const STORAGE_CONFIG = "BX_DIRECT_CONFIG";
+        const STORAGE_MAINTENANCE = "BX_MAINTENANCE_MODE";
         const DEFAULT_CONFIG = "hy2://XREG-49B5-A1F0-B53A.1793843700.18f9a12063d00b18ef54234d3648d914@wraith-bom3.xreg.site:443?security=tls&insecure=1&alpn=http/1.1&sni=wraith-bom3.xreg.site#BOOSTER X WIRE";
 
         window.addEventListener('load', () => {
             let current = localStorage.getItem(STORAGE_CONFIG) || DEFAULT_CONFIG;
             document.getElementById('input-config-url').value = current;
+            let maint = localStorage.getItem(STORAGE_MAINTENANCE) || "OFF";
+            document.getElementById('maintenance-toggle').value = maint;
             loadKeys();
+        });
+
+        document.getElementById('btn-save-maintenance').addEventListener('click', () => {
+            let val = document.getElementById('maintenance-toggle').value;
+            localStorage.setItem(STORAGE_MAINTENANCE, val);
+            let msg = document.getElementById('maint-success');
+            msg.style.display = "block";
+            setTimeout(() => { msg.style.display = "none"; }, 2000);
         });
 
         document.getElementById('btn-save-config').addEventListener('click', () => {
@@ -104,7 +125,7 @@
                 div.innerHTML = `
                     <div>
                         <div class="key-text">${item.key}</div>
-                        <div style="font-size:9px; color:#9ca3af; margin-top:2px;">Duration: ${item.durationVal} ${item.durationUnit} | Status: ${item.deviceUuid ? 'Bound (Locked)' : 'Unbound'}</div>
+                        <div style="font-size:9px; color:#9ca3af; margin-top:2px;">Duration: ${item.durationVal} ${item.durationUnit} | Target: BOOSTER X WIRE</div>
                     </div>
                     <div class="btn-group-actions">
                         <button class="copy-btn" onclick="copyKeyText('${item.key}', this)">COPY</button>
@@ -116,7 +137,6 @@
         }
 
         window.copyKeyText = function(keyStr, btnElem) {
-            // Robust clipboard copy with fallback for mobile webviews
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(keyStr).then(() => {
                     showCopiedState(btnElem);
