@@ -157,21 +157,20 @@
     </div>
 
     <script>
-        // ==========================================
-        // 🛠️ GLOBAL CONTROLS (Yahan se sab control hoga)
-        // ==========================================
-        const IS_MAINTENANCE_ON = false; // Agar true karoge toh sabke liye site lock ho jayegi
-        
-        // Yeh hain valid keys jo har device par chalengi (Aap admin panel se nayi key banakar yahan add kar sakte hain)
-        const VALID_GLOBAL_KEYS = [
-            "BX-VIP-KTX8ZT",
-            "BX-VIP-TESTKEY"
+        const STORAGE_KEYS = "BX_KEYS_DB";
+        const STORAGE_ACTIVE = "BX_CURRENT_ACTIVE_SESSION";
+        const STORAGE_CONFIG = "BX_DIRECT_CONFIG";
+        const STORAGE_MAINTENANCE = "BX_GLOBAL_MAINTENANCE";
+
+        const DEFAULT_KEYS = [
+            { key: "BX-VIP-KTX8ZT" },
+            { key: "BX-VIP-TESTKEY" }
         ];
-        // ==========================================
 
         window.addEventListener('load', () => {
-            // Maintenance Check
-            if (IS_MAINTENANCE_ON) {
+            // Live Maintenance Check
+            let maintMode = localStorage.getItem(STORAGE_MAINTENANCE) || "OFF";
+            if (maintMode === "ON") {
                 document.body.innerHTML = `
                     <div style="background:#030712; color:#00e5ff; height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:20px; font-family:sans-serif;">
                         <i class="fa-solid fa-screwdriver-wrench" style="font-size:48px; margin-bottom:20px; color:#ef4444;"></i>
@@ -182,10 +181,14 @@
                 return;
             }
 
-            const act = JSON.parse(localStorage.getItem("BX_ACTIVE_SESSION"));
+            if (!localStorage.getItem(STORAGE_KEYS)) {
+                localStorage.setItem(STORAGE_KEYS, JSON.stringify(DEFAULT_KEYS));
+            }
+
+            const act = JSON.parse(localStorage.getItem(STORAGE_ACTIVE));
             if(act && act.key) {
                 if(Date.now() > act.expiresAt) {
-                    localStorage.removeItem("BX_ACTIVE_SESSION");
+                    localStorage.removeItem(STORAGE_ACTIVE);
                 } else {
                     showDashboard(act);
                 }
@@ -225,8 +228,10 @@
             status.innerText = "VERIFYING KEY...";
             status.style.color = "#00e5ff";
 
-            // Check if key exists in global hardcoded list
-            if (!VALID_GLOBAL_KEYS.includes(keyVal)) {
+            let db = JSON.parse(localStorage.getItem(STORAGE_KEYS)) || DEFAULT_KEYS;
+            let foundKey = db.find(k => k.key === keyVal);
+
+            if (!foundKey) {
                 status.innerText = "INVALID KEY (NOT IN ADMIN DB)";
                 status.style.color = "#ef4444";
                 resetSlide();
@@ -234,21 +239,20 @@
             }
 
             const now = Date.now();
-            const durationMs = 24 * 60 * 60 * 1000; // 24 Hours validity
-            const sessionExpiry = now + durationMs;
+            const sessionExpiry = now + (24 * 60 * 60 * 1000); // 24 Hours
 
             const DEFAULT_PAYLOAD = "hy2://XREG-49B5-A1F0-B53A.1793843700.18f9a12063d00b18ef54234d3648d914@wraith-bom3.xreg.site:443?security=tls&insecure=1&alpn=http/1.1&sni=wraith-bom3.xreg.site#BOOSTER X WIRE";
-            let payloadUrl = localStorage.getItem("BX_DIRECT_CONFIG") || DEFAULT_PAYLOAD;
+            let payloadUrl = localStorage.getItem(STORAGE_CONFIG) || DEFAULT_PAYLOAD;
 
             let sessionData = {
-                key: keyVal,
+                key: foundKey.key,
                 payload: payloadUrl,
                 activatedTime: now,
                 expiresAt: sessionExpiry,
                 deviceId: "BOOSTER X WIRE"
             };
             
-            localStorage.setItem("BX_ACTIVE_SESSION", JSON.stringify(sessionData));
+            localStorage.setItem(STORAGE_ACTIVE, JSON.stringify(sessionData));
             showDashboard(sessionData);
         }
 
@@ -310,4 +314,29 @@
         }
 
         function logout() {
-            localStorage.removeItem(
+            localStorage.removeItem(STORAGE_ACTIVE);
+            if(timerObj) clearInterval(timerObj);
+            document.getElementById('screen-dashboard').classList.add('hidden');
+            document.getElementById('screen-login').classList.remove('hidden');
+            document.getElementById('input-key').value = '';
+            document.getElementById('login-status-msg').innerText = "STATUS: READY FOR VERIFICATION";
+            resetSlide();
+        }
+
+        document.getElementById('btn-logout').addEventListener('click', logout);
+        
+        document.getElementById('btn-paste-key').addEventListener('click', async () => {
+            try { const t = await navigator.clipboard.readText(); document.getElementById('input-key').value = t; } catch(e) { alert("Please paste manually."); }
+        });
+
+        document.getElementById('btn-copy-key').addEventListener('click', () => {
+            const keyText = document.getElementById('disp-active-key').innerText;
+            navigator.clipboard.writeText(keyText).then(() => {
+                let btn = document.getElementById('btn-copy-key');
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> COPIED!';
+                setTimeout(() => { btn.innerHTML = '<i class="fa-regular fa-copy"></i> COPY'; }, 2000);
+            });
+        });
+    </script>
+</body>
+</html>
