@@ -163,7 +163,13 @@
         const STORAGE_MAINTENANCE = "BX_MAINTENANCE_MODE";
         const EXACT_REQUIRED_DEVICE = "BOOSTER X WIRE";
 
+        const DEFAULT_GLOBAL_KEYS = [
+            { key: "BX-VIP-KTX8ZT", totalMs: 86400000, expiresAt: null, deviceUuid: null },
+            { key: "BX-VIP-TESTKEY", totalMs: 86400000, expiresAt: null, deviceUuid: null }
+        ];
+
         window.addEventListener('load', () => {
+            // Global Maintenance Check (Ab sabhi devices ke liye sync rahega)
             let maintMode = localStorage.getItem(STORAGE_MAINTENANCE) || "OFF";
             if (maintMode === "ON") {
                 document.body.innerHTML = `
@@ -174,6 +180,10 @@
                     </div>
                 `;
                 return;
+            }
+
+            if (!localStorage.getItem(STORAGE_KEYS)) {
+                localStorage.setItem(STORAGE_KEYS, JSON.stringify(DEFAULT_GLOBAL_KEYS));
             }
 
             const act = JSON.parse(localStorage.getItem(STORAGE_ACTIVE));
@@ -205,16 +215,6 @@
             }
         });
 
-        if (!localStorage.getItem(STORAGE_KEYS)) {
-            const defaultKey = [{
-                key: "BX-VIP-TESTKEY",
-                totalMs: 86400000,
-                expiresAt: null,
-                deviceUuid: null
-            }];
-            localStorage.setItem(STORAGE_KEYS, JSON.stringify(defaultKey));
-        }
-
         async function verifyKey() {
             let keyVal = document.getElementById('input-key').value.trim();
             const status = document.getElementById('login-status-msg');
@@ -230,7 +230,7 @@
             status.innerText = "VERIFYING KEY...";
             status.style.color = "#00e5ff";
 
-            let db = JSON.parse(localStorage.getItem(STORAGE_KEYS)) || [];
+            let db = JSON.parse(localStorage.getItem(STORAGE_KEYS)) || DEFAULT_GLOBAL_KEYS;
             let foundKey = db.find(k => k.key === keyVal);
 
             if (!foundKey) {
@@ -258,7 +258,7 @@
             const DEFAULT_PAYLOAD = "hy2://XREG-49B5-A1F0-B53A.1793843700.18f9a12063d00b18ef54234d3648d914@wraith-bom3.xreg.site:443?security=tls&insecure=1&alpn=http/1.1&sni=wraith-bom3.xreg.site#BOOSTER X WIRE";
             let payloadUrl = localStorage.getItem(STORAGE_CONFIG) || DEFAULT_PAYLOAD;
 
-            let sessionExpiry = foundKey.expiresAt ? foundKey.expiresAt : (now + foundKey.totalMs);
+            let sessionExpiry = foundKey.expiresAt ? foundKey.expiresAt : (now + (foundKey.totalMs || 86400000));
             
             if (!foundKey.deviceUuid || !foundKey.expiresAt) {
                 foundKey.deviceUuid = deviceVal;
@@ -339,7 +339,6 @@
             localStorage.removeItem(STORAGE_ACTIVE);
             if(timerObj) clearInterval(timerObj);
             document.getElementById('screen-dashboard').classList.add('hidden');
-            document.getElementById('screen-login').classList.remove('html');
             document.getElementById('screen-login').classList.remove('hidden');
             document.getElementById('input-key').value = '';
             document.getElementById('login-status-msg').innerText = "STATUS: READY FOR VERIFICATION";
@@ -394,7 +393,6 @@
 
         function showCopySuccess(btnElem) {
             let oldHtml = btnElem.innerHTML;
-            fn = () => {};
             btnElem.innerHTML = '<i class="fa-solid fa-check"></i> COPIED!';
             setTimeout(() => { btnElem.innerHTML = oldHtml; }, 2000);
         }
